@@ -1,0 +1,10 @@
+{
+  "repositoryUrl": "https://github.com/enkhjile/aws-ssm-remote-port-forwarding-action",
+  "branches": [
+    "release",
+    {
+      "name": "main",
+      "prerelease": true
+    }
+  ]
+}

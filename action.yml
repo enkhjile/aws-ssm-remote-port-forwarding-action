@@ -1,0 +1,30 @@
+name: 'AWS SSM Remote Port Forwarding'
+description: 'Forward a remote port to a local port using AWS SSM'
+author: 'Enkhjil Enkhbaatar <enkhjil.eb@gmail.com>'
+
+branding:
+  icon: 'heart'
+  color: 'red'
+
+inputs:
+  target:
+    description: 'AWS EC2 instance ID'
+    required: true
+  host:
+    description: 'Remote host to connect to'
+    required: true
+  port:
+    description: 'Remote port to connect to'
+    required: true
+  local-port:
+    description: 'Local port to bind to'
+    required: true
+
+outputs:
+  session-id:
+    description: 'The session ID'
+
+runs:
+  using: node20
+  main: dist/main/index.js
+  post: dist/post/index.js
