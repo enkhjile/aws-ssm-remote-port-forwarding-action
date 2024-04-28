@@ -18,6 +18,7 @@ export async function getSessionId(output: string): Promise<string> {
 }
 
 export async function run(): Promise<void> {
+  console.log("Running the action");
   try {
     const target = core.getInput("target", { required: true });
     const host = core.getInput("host", { required: true });
