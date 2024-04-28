@@ -8,21 +8,17 @@ branding:
 
 inputs:
   target:
-    description: 'AWS EC2 instance ID'
+    description: 'The target instance ID'
     required: true
   host:
-    description: 'Remote host to connect to'
+    description: 'The remote host to forward the port from'
     required: true
   port:
-    description: 'Remote port to connect to'
+    description: 'The remote port to forward'
     required: true
   local-port:
-    description: 'Local port to bind to'
+    description: 'The local port to forward to'
     required: true
-
-outputs:
-  session-id:
-    description: 'The session ID'
 
 runs:
   using: node20
