@@ -16,21 +16,21 @@ done
 
 # Check if required parameters were provided
 if [ -z "${target}" ] || [ -z "${host}" ] || [ -z "${port}" ] || [ -z "${local_port}" ]; then
-  echo "Usage: $0 -t <target_instance_id> -h <remote_host> -p <remote_port> -l <local_port>" >&2
+  echo "Usage: $0 -t <target_instance_id|target_ecs_task_container> -h <remote_host> -p <remote_port> -l <local_port>" >&2
   exit 1
 fi
 
-# Check if the target instance or ECS task actually exists
+# Check if the target instance or ECS task container actually exists
 if [[ "${target}" == ecs* ]]; then
   ecs_target=${target##*:}
   ecs_cluster_name=${ecs_target%%_*}
-  ecs_task_runtime_id=${ecs_target##*_}
-  ecs_task_id=${ecs_task_runtime_id%-*}
+  ecs_task_container_runtime_id=${ecs_target##*_}
+  ecs_task_id=${ecs_task_container_runtime_id%-*}
   target_exists=$(aws ecs describe-tasks \
     --cluster $ecs_cluster_name \
     --tasks $ecs_task_id \
     --query "tasks[*].containers[*].runtimeId" \
-    --output text | grep $ecs_task_runtime_id)
+    --output text | grep $ecs_task_container_runtime_id)
 else
   target_exists=$(aws ec2 describe-instances \
     --instance-ids "${target}" \
