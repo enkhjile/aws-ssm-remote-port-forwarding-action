@@ -59,9 +59,9 @@
     "@types/node": "^20.11.24",
     "@vercel/ncc": "^0.38.3",
     "jest": "^29.7.0",
-    "lefthook": "^1.10.10",
+    "lefthook": "^1.11.3",
     "make-coverage-badge": "^1.2.0",
-    "ts-jest": "^29.2.5",
-    "typescript": "^5.7.3"
+    "ts-jest": "^29.2.6",
+    "typescript": "^5.8.2"
   }
 }
