@@ -25,7 +25,7 @@ export async function run(): Promise<void> {
     const localPort = core.getInput("local-port", { required: true });
 
     core.info(
-      `Establishing a session with target ${target} and forwarding port ${port} to ${host}:${localPort}`
+      `Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`
     );
 
     const command = spawn(SCRIPT_PATH, [

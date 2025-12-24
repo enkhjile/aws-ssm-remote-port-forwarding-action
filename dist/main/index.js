@@ -25968,7 +25968,7 @@ async function run() {
         const host = core.getInput("host", { required: true });
         const port = core.getInput("port", { required: true });
         const localPort = core.getInput("local-port", { required: true });
-        core.info(`Establishing a session with target ${target} and forwarding port ${port} to ${host}:${localPort}`);
+        core.info(`Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`);
         const command = (0, node_child_process_1.spawn)(exports.SCRIPT_PATH, [
             "-t",
             target,
