@@ -25982,7 +25982,7 @@ async function run() {
         let stdout = "";
         let stderr = "";
         command.stdout.on("data", (data) => {
-            console.log(data.toString());
+            core.info(data.toString());
             stdout += data;
         });
         command.stderr.on("data", (data) => {

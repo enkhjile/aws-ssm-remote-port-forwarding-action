@@ -25,7 +25,7 @@ export async function run(): Promise<void> {
     const localPort = core.getInput("local-port", { required: true });
 
     core.info(
-      `Establishing a session with target ${target} and forwarding port ${port} to ${host}:${localPort}`,
+      `Establishing a session with target ${target} and forwarding port ${port} to ${host}:${localPort}`
     );
 
     const command = spawn(SCRIPT_PATH, [
@@ -43,7 +43,7 @@ export async function run(): Promise<void> {
     let stderr = "";
 
     command.stdout.on("data", (data) => {
-      console.log(data.toString());
+      core.info(data.toString());
       stdout += data;
     });
 
@@ -66,7 +66,7 @@ export async function run(): Promise<void> {
   } catch (error) {
     // Fail the workflow run if an error occurs
     core.setFailed(
-      error instanceof Error ? error.message : ErrorMessage.UnexpectedError,
+      error instanceof Error ? error.message : ErrorMessage.UnexpectedError
     );
   }
 }
