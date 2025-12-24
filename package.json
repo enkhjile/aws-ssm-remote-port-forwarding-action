@@ -1,26 +1,23 @@
 {
-  "name": "typescript-action",
+  "name": "aws-ssm-remote-port-forwarding",
   "version": "0.0.0",
   "private": true,
-  "description": "GitHub Actions TypeScript template",
+  "description": "Forward a remote port to a local port using AWS SSM",
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/enkhjile/aws-ssm-remote-port-forwarding",
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/enkhjile/aws-ssm-remote-port-forwarding/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/enkhjile/aws-ssm-remote-port-forwarding.git"
   },
   "license": "MIT",
-  "author": "",
-  "exports": {
-    ".": "./dist/index.js"
-  },
+  "author": "Enkhjil Enkhbaatar <enkhjil.eb@gmail.com>",
   "scripts": {
     "all": "npm run test && npm run coverage && npm run package",
     "bundle": "npx biome check && npm run package",
