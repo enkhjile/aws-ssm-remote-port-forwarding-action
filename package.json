@@ -23,8 +23,8 @@
     "bundle": "npx biome check && npm run package",
     "coverage": "npx make-coverage-badge --output-path ./badges/coverage.svg",
     "package": "npm run package:main && npm run package:post",
-    "package:main": "npx ncc build src/main.ts -o dist/main --source-map --license licenses.txt && cp src/connect-with-port-forwarding.sh dist/main/connect-with-port-forwarding.sh",
-    "package:post": "npx ncc build src/post.ts -o dist/post --source-map --license licenses.txt",
+    "package:main": "npx ncc build src/main.ts -o dist/main --license licenses.txt && cp src/connect-with-port-forwarding.sh dist/main/connect-with-port-forwarding.sh",
+    "package:post": "npx ncc build src/post.ts -o dist/post --license licenses.txt",
     "package:watch": "npm run package -- --watch",
     "test": "npx jest"
   },
