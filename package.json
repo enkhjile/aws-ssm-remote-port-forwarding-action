@@ -58,7 +58,7 @@
     "verbose": true
   },
   "dependencies": {
-    "@actions/core": "^2.0.1",
+    "@actions/core": "^2.0.2",
     "@aws-sdk/client-ssm": "^3.812.0"
   },
   "devDependencies": {
