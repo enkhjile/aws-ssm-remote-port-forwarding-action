@@ -70,7 +70,7 @@
     "lefthook": "^2.0.13",
     "make-coverage-badge": "^1.2.0",
     "ts-jest": "^29.4.6",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   },
   "engines": {
     "node": ">=20"
