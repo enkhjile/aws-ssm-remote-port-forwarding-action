@@ -31,23 +31,24 @@ if [ -z "${target_exists}" ]; then
   exit 1
 fi
 
-OUTPUT_LOG="output.txt"
-ERROR_LOG="error.txt"
+OUTPUT_FILE="$(mktemp)"
+ERROR_FILE="$(mktemp)"
+
+# Cleanup function to remove temporary files
+cleanup() {
+  rm -f "$OUTPUT_FILE" "$ERROR_FILE"
+}
+trap cleanup EXIT
 
 # Start AWS SSM session with port forwarding in background
 aws ssm start-session \
   --target "${target}" \
   --document-name "AWS-StartPortForwardingSessionToRemoteHost" \
   --parameters "host=${host},portNumber=${port},localPortNumber=${local_port}" \
-  > "$OUTPUT_LOG" 2> "$ERROR_LOG" &
+  > "$OUTPUT_FILE" 2> "$ERROR_FILE" &
 
 # Store the PID of the background session (to terminate if needed)
 session_pid=$!
-
-# Wait for the output file to be created
-while [ ! -f "$OUTPUT_LOG" ]; do
-  sleep 0.1
-done
 
 # Wait for the session to be established
 attempt_counter=0
@@ -55,36 +56,30 @@ max_attempts=10
 session_id_str="sessionId"
 
 echo "Attempting to establish SSM session..."
-until grep -q "${session_id_str}" "$OUTPUT_LOG" || [ "${attempt_counter}" -ge "${max_attempts}" ]; do
+until grep -q "${session_id_str}" "$OUTPUT_FILE" || [ "${attempt_counter}" -ge "${max_attempts}" ]; do
   attempt_counter=$((attempt_counter + 1))
   echo "Waiting for the session to be established (${attempt_counter}/${max_attempts})..."
   sleep 1
 done
 
 
-# Cleanup function to remove temporary files
-cleanup() {
-  rm -f "$OUTPUT_LOG" "$ERROR_LOG"
-}
-trap cleanup EXIT
-
 # Check if the session was established
-if ! grep -q "${session_id_str}" "$OUTPUT_LOG"; then
+if ! grep -q "${session_id_str}" "$OUTPUT_FILE"; then
   echo "Failed to establish the session." >&2
   # Kill the background session process if it's still running
   kill "${session_pid}" 2>/dev/null || true
 
-  if [ -s "$ERROR_LOG" ]; then
-    cat "$ERROR_LOG" >&2
+  if [ -s "$ERROR_FILE" ]; then
+    cat "$ERROR_FILE" >&2
   fi
 
-  if [ -s "$OUTPUT_LOG" ]; then
-    cat "$OUTPUT_LOG" >&2
+  if [ -s "$OUTPUT_FILE" ]; then
+    cat "$OUTPUT_FILE" >&2
   fi
 
   exit 1
 else
   # Extract the session ID from the output
-  session_id="$(sed -n -E "s/^.*${session_id_str} (.*)\./\1/p" "$OUTPUT_LOG")"
+  session_id="$(sed -n -E "s/^.*${session_id_str} (.*)\./\1/p" "$OUTPUT_FILE")"
   echo "Session established with ID: ${session_id}"
 fi
