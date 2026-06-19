@@ -26,10 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v6
       with:
         aws-region: ap-northeast-1
         role-to-assume: arn:aws:iam::123456789012:role/role-name
@@ -41,6 +41,51 @@ jobs:
         host: my-rds-instance.123456789012.ap-northeast-1.rds.amazonaws.com
         port: 3306
         local-port: 3306
+```
+
+## IAM permissions
+
+Your pipeline must have these minimal permissions.
+
+`ec2:DescribeInstances` does not support resource-level scoping, so that
+statement must use `"Resource": "*"`.
+
+`ssm:StartSession` uses the AWS-owned document
+`AWS-StartPortForwardingSessionToRemoteHost`, which has an empty account field
+in its ARN. Account-scoped resources do not match, so the SSM statements also
+use `"Resource": "*"`.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Ec2DescribeBastionTarget",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SsmStartPortForwardingSession",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:StartSession"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SsmManagePortForwardingSession",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:TerminateSession",
+        "ssm:ResumeSession"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
 ```
 
 ## Contributing
