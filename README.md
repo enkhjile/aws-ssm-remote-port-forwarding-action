@@ -45,15 +45,12 @@ jobs:
 
 ## IAM permissions
 
-Your pipeline must have these minimal permissions.
+Your pipeline needs the following permissions.
 
-`ec2:DescribeInstances` does not support resource-level scoping, so that
-statement must use `"Resource": "*"`.
+This example uses Resource: `"*" `for the SSM session actions to keep the policy simple and because the AWS-owned SSM document ARN has an empty account field. 
+If stricter least-privilege access is required, `ssm:StartSession` can be scoped to the target EC2 instance ARN and the AWS-owned document ARN, 
+for example `arn:aws:ssm:<region>::document/AWS-StartPortForwardingSessionToRemoteHost`.
 
-`ssm:StartSession` uses the AWS-owned document
-`AWS-StartPortForwardingSessionToRemoteHost`, which has an empty account field
-in its ARN. Account-scoped resources do not match, so the SSM statements also
-use `"Resource": "*"`.
 
 ```json
 {
