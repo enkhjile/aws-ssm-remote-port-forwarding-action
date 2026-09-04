@@ -8,7 +8,7 @@ This action allows you to forward a port from a remote machine to your local mac
 
 | Name | Required | Description |
 | --- | --- | --- |
-| target | true | The target instance ID |
+| target | true | The target instance ID or ECS task container |
 | host | true | The remote host to forward the port from |
 | port | true | The remote port to forward |
 | local-port | true | The local port to forward to |
@@ -34,10 +34,19 @@ jobs:
         aws-region: ap-northeast-1
         role-to-assume: arn:aws:iam::123456789012:role/role-name
 
-    - name: Port forward
+    - name: Port forward to EC2 instance
       uses: enkhjile/aws-ssm-remote-port-forwarding-action@v1
       with:
         target: i-1234567890abcdef0
+        host: my-rds-instance.123456789012.ap-northeast-1.rds.amazonaws.com
+        port: 3306
+        local-port: 3306
+
+    - name: Port forward to ECS or Fargate task container
+      uses: enkhjile/aws-ssm-remote-port-forwarding-action@v1
+      with:
+        # target for ECS task container is "ecs:<ecs-cluster-name>_<task-id>_<task-container-runtime-id>"
+        target: ecs:my-ecs-cluster_1234abcd5678efab9012cdef3456abcd_1234abcd5678efab9012cdef3456abcd-1234567890
         host: my-rds-instance.123456789012.ap-northeast-1.rds.amazonaws.com
         port: 3306
         local-port: 3306
