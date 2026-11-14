@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as core from "@actions/core";
 import { ErrorMessage, StateName } from "../src/const";
-import { SCRIPT_PATH, getSessionId, run } from "../src/main";
+import { getSessionId, run, SCRIPT_PATH } from "../src/main";
 
 jest.mock("@actions/core");
 jest.mock("node:child_process");
@@ -24,6 +24,7 @@ describe("run", () => {
     const host = "test-host";
     const port = "test-port";
     const localPort = "test-local-port";
+    const timeout = "30";
 
     const mockStdout = mockStream(`Session established with ID: ${sessionId}`);
     const mockStderr = mockStream("");
@@ -48,6 +49,8 @@ describe("run", () => {
           return port;
         case "local-port":
           return localPort;
+        case "timeout":
+          return timeout;
         default:
           return "test-input";
       }
@@ -64,6 +67,8 @@ describe("run", () => {
       port,
       "-l",
       localPort,
+      "-w",
+      timeout,
     ]);
     expect(mockCore.saveState).toHaveBeenCalledWith(
       StateName.SessionId,
@@ -88,7 +93,7 @@ describe("run", () => {
       }),
     } as unknown as ChildProcessWithoutNullStreams);
 
-    mockCore.getInput.mockImplementation((name: string) => "test-input");
+    mockCore.getInput.mockImplementation((_name: string) => "test-input");
 
     await run();
 
@@ -114,11 +119,84 @@ describe("run", () => {
       }),
     } as unknown as ChildProcessWithoutNullStreams);
 
-    mockCore.getInput.mockImplementation((name: string) => "test-input");
+    mockCore.getInput.mockImplementation((_name: string) => "test-input");
 
     await run();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(errorMessage);
+  });
+
+  it("should default the timeout to 60 seconds", async () => {
+    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+    const mockCore = core as jest.Mocked<typeof core>;
+
+    mockSpawn.mockReturnValue({
+      stdout: mockStream("Session established with ID: test-id"),
+      stderr: mockStream(""),
+      on: jest.fn((event, callback) => {
+        if (event === "close") {
+          callback(0);
+        }
+      }),
+    } as unknown as ChildProcessWithoutNullStreams);
+    mockCore.getInput.mockImplementation((name: string) =>
+      name === "timeout" ? "" : "test-input",
+    );
+
+    await run();
+
+    expect(mockSpawn).toHaveBeenLastCalledWith(
+      SCRIPT_PATH,
+      expect.arrayContaining(["-w", "60"]),
+    );
+  });
+
+  it("should succeed when the script exits 0 even if it wrote to stderr", async () => {
+    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+    const mockCore = core as jest.Mocked<typeof core>;
+    mockCore.setFailed.mockClear();
+    mockCore.saveState.mockClear();
+
+    mockSpawn.mockReturnValue({
+      stdout: mockStream("Session established with ID: test-id"),
+      stderr: mockStream("some warning"),
+      on: jest.fn((event, callback) => {
+        if (event === "close") {
+          callback(0);
+        }
+      }),
+    } as unknown as ChildProcessWithoutNullStreams);
+    mockCore.getInput.mockImplementation(() => "test-input");
+
+    await run();
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.saveState).toHaveBeenCalledWith(
+      StateName.SessionId,
+      "test-id",
+    );
+  });
+
+  it("should report the exit code when the script fails without stderr", async () => {
+    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+    const mockCore = core as jest.Mocked<typeof core>;
+
+    mockSpawn.mockReturnValue({
+      stdout: mockStream(""),
+      stderr: mockStream(""),
+      on: jest.fn((event, callback) => {
+        if (event === "close") {
+          callback(2);
+        }
+      }),
+    } as unknown as ChildProcessWithoutNullStreams);
+    mockCore.getInput.mockImplementation(() => "test-input");
+
+    await run();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      "Port forwarding script exited with code 2",
+    );
   });
 
   it("should set the workflow as failed if an unexpected error occurs", async () => {
@@ -138,16 +216,13 @@ describe("run", () => {
 });
 
 describe("getSessionId", () => {
-  it("should extract the session ID from the output", async () => {
+  it("should extract the session ID from the output", () => {
     const output = "Session established with ID: test-id";
-    const sessionId = await getSessionId(output);
-    expect(sessionId).toBe("test-id");
+    expect(getSessionId(output)).toBe("test-id");
   });
 
-  it("should throw an error if the session ID is not found", async () => {
+  it("should throw an error if the session ID is not found", () => {
     const output = "Session not established";
-    await expect(getSessionId(output)).rejects.toThrow(
-      "Failed to extract session ID",
-    );
+    expect(() => getSessionId(output)).toThrow("Failed to extract session ID");
   });
 });

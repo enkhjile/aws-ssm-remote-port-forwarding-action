@@ -19,6 +19,10 @@ inputs:
   local-port:
     description: 'The local port to forward to'
     required: true
+  timeout:
+    description: 'Seconds to wait for the session to open the local port'
+    required: false
+    default: '60'
 
 runs:
   using: node24

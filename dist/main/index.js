@@ -25954,7 +25954,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const const_1 = __nccwpck_require__(2560);
 const SCRIPT_NAME = "connect-with-port-forwarding.sh";
 exports.SCRIPT_PATH = node_path_1.default.join(__dirname, SCRIPT_NAME);
-async function getSessionId(output) {
+function getSessionId(output) {
     const regex = /Session established with ID: (\S+)/;
     const match = output.match(regex);
     if (match === null) {
@@ -25968,6 +25968,7 @@ async function run() {
         const host = core.getInput("host", { required: true });
         const port = core.getInput("port", { required: true });
         const localPort = core.getInput("local-port", { required: true });
+        const timeout = core.getInput("timeout") || "60";
         core.info(`Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`);
         const command = (0, node_child_process_1.spawn)(exports.SCRIPT_PATH, [
             "-t",
@@ -25978,6 +25979,8 @@ async function run() {
             port,
             "-l",
             localPort,
+            "-w",
+            timeout,
         ]);
         let stdout = "";
         let stderr = "";
@@ -25992,10 +25995,10 @@ async function run() {
             command.on("close", resolve);
             command.on("error", reject);
         });
-        if (exitCode !== 0 || stderr) {
-            throw new Error(stderr);
+        if (exitCode !== 0) {
+            throw new Error(stderr.trim() || `Port forwarding script exited with code ${exitCode}`);
         }
-        const sessionId = await getSessionId(stdout);
+        const sessionId = getSessionId(stdout);
         // Save the session ID to the state
         core.saveState(const_1.StateName.SessionId, sessionId);
     }
