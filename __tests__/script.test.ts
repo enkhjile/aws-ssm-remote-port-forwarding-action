@@ -145,18 +145,16 @@ describe("connect-with-port-forwarding.sh", () => {
     );
   });
 
-  it.each([
-    "0",
-    "-5",
-    "abc",
-    "1.5",
-  ])("rejects an invalid timeout (%s)", (timeout) => {
-    const result = runScript([...ARGS, "-w", timeout]);
+  it.each(["0", "-5", "abc", "1.5"])(
+    "rejects an invalid timeout (%s)",
+    (timeout) => {
+      const result = runScript([...ARGS, "-w", timeout]);
 
-    expect(result.code).toBe(1);
-    expect(result.stderr).toContain("Timeout must be a positive number");
-    expect(readOrEmpty(logFile)).toBe("");
-  });
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("Timeout must be a positive number");
+      expect(readOrEmpty(logFile)).toBe("");
+    },
+  );
 
   it("prints usage when a required argument is missing", () => {
     const result = runScript(["-t", "i-123", "-h", "db", "-p", "5432"]);

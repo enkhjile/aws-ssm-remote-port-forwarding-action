@@ -11,15 +11,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      # Use the Biome version locked in package-lock.json, the same one the
-      # pre-commit hook runs; setup-biome resolved package.json's range to the
-      # newest release, which can format differently.
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
+      # Detects the version from package-lock.json (falling back to the highest
+      # match for package.json's range). @biomejs/biome is pinned with "~", so
+      # CI stays on the same minor version as the pre-commit hook.
+      - name: Setup Biome
+        uses: biomejs/setup-biome@v2
       - name: Run Biome
-        run: npx biome ci
+        run: biome ci
