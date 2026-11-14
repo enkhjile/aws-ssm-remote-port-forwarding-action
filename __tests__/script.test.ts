@@ -1,7 +1,8 @@
-import { spawn } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
 // Runs the real connect-with-port-forwarding.sh against a fake AWS CLI
 // (__tests__/fixtures/aws) that imitates `aws ssm start-session` and the
@@ -54,22 +55,17 @@ function isAlive(pid: number): boolean {
 async function waitUntilDead(pid: number): Promise<boolean> {
   for (let i = 0; i < 20; i++) {
     if (!isAlive(pid)) return true;
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await sleep(100);
   }
   return false;
 }
 
-async function runScript(
-  args: string[],
-  env: Record<string, string> = {},
-): Promise<{
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  ms: number;
-}> {
+// The script's background job writes to temp files, not to these pipes, so
+// spawnSync returns as soon as the script itself exits.
+function runScript(args: string[], env: Record<string, string> = {}) {
   const started = Date.now();
-  const child = spawn(SCRIPT, args, {
+  const { status, stdout, stderr } = spawnSync(SCRIPT, args, {
+    encoding: "utf8",
     env: {
       ...process.env,
       PATH: `${FAKE_AWS_DIR}:${process.env.PATH}`,
@@ -78,25 +74,12 @@ async function runScript(
       ...env,
     },
   });
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (data) => {
-    stdout += data;
-  });
-  child.stderr.on("data", (data) => {
-    stderr += data;
-  });
-  const code = await new Promise<number | null>((resolve) =>
-    child.on("close", resolve),
-  );
-  return { code, stdout, stderr, ms: Date.now() - started };
+  return { code: status, stdout, stderr, ms: Date.now() - started };
 }
 
 describe("connect-with-port-forwarding.sh", () => {
-  it("reports the session once the local port is open and keeps the tunnel running", async () => {
-    const result = await runScript([...ARGS, "-w", "5"], {
-      FAKE_PORT_DELAY: "1",
-    });
+  it("reports the session once the local port is open and keeps the tunnel running", () => {
+    const result = runScript([...ARGS, "-w", "5"]);
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain(
@@ -105,19 +88,18 @@ describe("connect-with-port-forwarding.sh", () => {
     const pid = pluginPid();
     expect(pid).toBeDefined();
     expect(isAlive(pid as number)).toBe(true);
+    expect(readOrEmpty(logFile)).not.toContain("terminate-session");
   });
 
-  it("defaults to a 60 second timeout", async () => {
-    const result = await runScript(ARGS);
+  it("defaults to a 60 second timeout", () => {
+    const result = runScript(ARGS);
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("(timeout 60s)");
   });
 
-  it("waits as long as the timeout allows for a slow session", async () => {
-    const result = await runScript([...ARGS, "-w", "6"], {
-      FAKE_PORT_DELAY: "3",
-    });
+  it("waits as long as the timeout allows for a slow session", () => {
+    const result = runScript([...ARGS, "-w", "3"], { FAKE_PORT_DELAY: "1.5" });
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain(
@@ -126,9 +108,7 @@ describe("connect-with-port-forwarding.sh", () => {
   });
 
   it("on timeout terminates the started session and stops the plugin", async () => {
-    const result = await runScript([...ARGS, "-w", "2"], {
-      FAKE_PORT_DELAY: "10",
-    });
+    const result = runScript([...ARGS, "-w", "2"], { FAKE_PORT_DELAY: "10" });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Timed out after 2s");
@@ -143,8 +123,8 @@ describe("connect-with-port-forwarding.sh", () => {
     expect(await waitUntilDead(pid as number)).toBe(true);
   });
 
-  it("fails fast with the CLI's error when it exits early", async () => {
-    const result = await runScript([...ARGS, "-w", "30"], { FAKE_FAIL: "1" });
+  it("fails fast with the CLI's error when it exits early", () => {
+    const result = runScript([...ARGS, "-w", "30"], { FAKE_FAIL: "1" });
 
     expect(result.code).toBe(1);
     expect(result.ms).toBeLessThan(5_000);
@@ -154,14 +134,8 @@ describe("connect-with-port-forwarding.sh", () => {
     expect(readOrEmpty(logFile)).not.toContain("terminate-session");
   });
 
-  it("does not terminate anything after a successful start", async () => {
-    await runScript([...ARGS, "-w", "5"]);
-
-    expect(readOrEmpty(logFile)).not.toContain("terminate-session");
-  });
-
-  it("extracts session ids that contain dots", async () => {
-    const result = await runScript([...ARGS, "-w", "5"], {
+  it("extracts session ids that contain dots", () => {
+    const result = runScript([...ARGS, "-w", "5"], {
       FAKE_SESSION_ID: "someone@example.co.jp-abc123",
     });
 
@@ -172,20 +146,20 @@ describe("connect-with-port-forwarding.sh", () => {
   });
 
   it.each([
-    ["0"],
-    ["-5"],
-    ["abc"],
-    ["1.5"],
-  ])("rejects an invalid timeout (%s)", async (timeout) => {
-    const result = await runScript([...ARGS, "-w", timeout]);
+    "0",
+    "-5",
+    "abc",
+    "1.5",
+  ])("rejects an invalid timeout (%s)", (timeout) => {
+    const result = runScript([...ARGS, "-w", timeout]);
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Timeout must be a positive number");
     expect(readOrEmpty(logFile)).toBe("");
   });
 
-  it("prints usage when a required argument is missing", async () => {
-    const result = await runScript(["-t", "i-123", "-h", "db", "-p", "5432"]);
+  it("prints usage when a required argument is missing", () => {
+    const result = runScript(["-t", "i-123", "-h", "db", "-p", "5432"]);
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Usage:");

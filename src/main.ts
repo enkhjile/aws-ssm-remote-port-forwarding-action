@@ -23,7 +23,8 @@ export async function run(): Promise<void> {
     const host = core.getInput("host", { required: true });
     const port = core.getInput("port", { required: true });
     const localPort = core.getInput("local-port", { required: true });
-    const timeout = core.getInput("timeout") || "60";
+    // action.yml supplies the default; the script has its own for direct runs.
+    const timeout = core.getInput("timeout");
 
     core.info(
       `Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`,
@@ -38,8 +39,7 @@ export async function run(): Promise<void> {
       port,
       "-l",
       localPort,
-      "-w",
-      timeout,
+      ...(timeout ? ["-w", timeout] : []),
     ]);
 
     let stdout = "";

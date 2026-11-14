@@ -6,6 +6,9 @@ import { getSessionId, run, SCRIPT_PATH } from "../src/main";
 jest.mock("@actions/core");
 jest.mock("node:child_process");
 
+const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+const mockCore = core as jest.Mocked<typeof core>;
+
 const mockStream = (data: string) => ({
   on: jest.fn((event, callback) => {
     if (event === "data") {
@@ -14,159 +17,87 @@ const mockStream = (data: string) => ({
   }),
 });
 
-describe("run", () => {
-  it("should run the script and save the session ID", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
-
-    const sessionId = "test-id";
-    const target = "test-target";
-    const host = "test-host";
-    const port = "test-port";
-    const localPort = "test-local-port";
-    const timeout = "30";
-
-    const mockStdout = mockStream(`Session established with ID: ${sessionId}`);
-    const mockStderr = mockStream("");
-
-    mockSpawn.mockReturnValue({
-      stdout: mockStdout,
-      stderr: mockStderr,
-      on: jest.fn((event, callback) => {
-        if (event === "close") {
-          callback(0);
-        }
-      }),
-    } as unknown as ChildProcessWithoutNullStreams);
-
-    mockCore.getInput.mockImplementation((name: string) => {
-      switch (name) {
-        case "target":
-          return target;
-        case "host":
-          return host;
-        case "port":
-          return port;
-        case "local-port":
-          return localPort;
-        case "timeout":
-          return timeout;
-        default:
-          return "test-input";
+// A fake script process that writes stdout/stderr, then either closes with
+// `code` or emits `error`.
+function mockChild({
+  stdout = "",
+  stderr = "",
+  code = 0,
+  error,
+}: {
+  stdout?: string;
+  stderr?: string;
+  code?: number;
+  error?: Error;
+}): void {
+  mockSpawn.mockReturnValue({
+    stdout: mockStream(stdout),
+    stderr: mockStream(stderr),
+    on: jest.fn((event, callback) => {
+      if (error && event === "error") {
+        callback(error);
+      } else if (!error && event === "close") {
+        callback(code);
       }
-    });
+    }),
+  } as unknown as ChildProcessWithoutNullStreams);
+}
+
+const SESSION_OUTPUT = "Session established with ID: test-id";
+
+describe("run", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockCore.getInput.mockReturnValue("test-input");
+  });
+
+  it("should run the script and save the session ID", async () => {
+    const inputs: Record<string, string> = {
+      target: "test-target",
+      host: "test-host",
+      port: "test-port",
+      "local-port": "test-local-port",
+      timeout: "30",
+    };
+    mockCore.getInput.mockImplementation((name: string) => inputs[name]);
+    mockChild({ stdout: SESSION_OUTPUT });
 
     await run();
 
     expect(mockSpawn).toHaveBeenCalledWith(SCRIPT_PATH, [
       "-t",
-      target,
+      "test-target",
       "-h",
-      host,
+      "test-host",
       "-p",
-      port,
+      "test-port",
       "-l",
-      localPort,
+      "test-local-port",
       "-w",
-      timeout,
+      "30",
     ]);
     expect(mockCore.saveState).toHaveBeenCalledWith(
       StateName.SessionId,
-      sessionId,
+      "test-id",
     );
   });
-  it("should set the workflow as failed if an error occurs", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
 
-    const mockStdout = mockStream("");
-    const mockStderr = mockStream("");
-    const mockError = new Error("Spawn error");
-
-    mockSpawn.mockReturnValue({
-      stdout: mockStdout,
-      stderr: mockStderr,
-      on: jest.fn((event, callback) => {
-        if (event === "error") {
-          callback(mockError);
-        }
-      }),
-    } as unknown as ChildProcessWithoutNullStreams);
-
-    mockCore.getInput.mockImplementation((_name: string) => "test-input");
-
-    await run();
-
-    expect(mockCore.setFailed).toHaveBeenCalledWith(mockError.message);
-  });
-  it("should set the workflow as failed if the script exits with a non-zero code", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
-
-    const errorMessage =
-      "Usage: $0 [-t target] [-h host] [-p port] [-l local_port]";
-
-    const mockStdout = mockStream("");
-    const mockStderr = mockStream(errorMessage);
-
-    mockSpawn.mockReturnValue({
-      stdout: mockStdout,
-      stderr: mockStderr,
-      on: jest.fn((event, callback) => {
-        if (event === "close") {
-          callback(1);
-        }
-      }),
-    } as unknown as ChildProcessWithoutNullStreams);
-
-    mockCore.getInput.mockImplementation((_name: string) => "test-input");
-
-    await run();
-
-    expect(mockCore.setFailed).toHaveBeenCalledWith(errorMessage);
-  });
-
-  it("should default the timeout to 60 seconds", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
-
-    mockSpawn.mockReturnValue({
-      stdout: mockStream("Session established with ID: test-id"),
-      stderr: mockStream(""),
-      on: jest.fn((event, callback) => {
-        if (event === "close") {
-          callback(0);
-        }
-      }),
-    } as unknown as ChildProcessWithoutNullStreams);
+  it("should leave the timeout to the script when the input is empty", async () => {
     mockCore.getInput.mockImplementation((name: string) =>
       name === "timeout" ? "" : "test-input",
     );
+    mockChild({ stdout: SESSION_OUTPUT });
 
     await run();
 
-    expect(mockSpawn).toHaveBeenLastCalledWith(
+    expect(mockSpawn).toHaveBeenCalledWith(
       SCRIPT_PATH,
-      expect.arrayContaining(["-w", "60"]),
+      expect.not.arrayContaining(["-w"]),
     );
   });
 
   it("should succeed when the script exits 0 even if it wrote to stderr", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
-    mockCore.setFailed.mockClear();
-    mockCore.saveState.mockClear();
-
-    mockSpawn.mockReturnValue({
-      stdout: mockStream("Session established with ID: test-id"),
-      stderr: mockStream("some warning"),
-      on: jest.fn((event, callback) => {
-        if (event === "close") {
-          callback(0);
-        }
-      }),
-    } as unknown as ChildProcessWithoutNullStreams);
-    mockCore.getInput.mockImplementation(() => "test-input");
+    mockChild({ stdout: SESSION_OUTPUT, stderr: "some warning" });
 
     await run();
 
@@ -177,20 +108,25 @@ describe("run", () => {
     );
   });
 
-  it("should report the exit code when the script fails without stderr", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
+  it("should set the workflow as failed if an error occurs", async () => {
+    mockChild({ error: new Error("Spawn error") });
 
-    mockSpawn.mockReturnValue({
-      stdout: mockStream(""),
-      stderr: mockStream(""),
-      on: jest.fn((event, callback) => {
-        if (event === "close") {
-          callback(2);
-        }
-      }),
-    } as unknown as ChildProcessWithoutNullStreams);
-    mockCore.getInput.mockImplementation(() => "test-input");
+    await run();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith("Spawn error");
+  });
+
+  it("should set the workflow as failed if the script exits with a non-zero code", async () => {
+    const errorMessage = "Usage: $0 -t <target_instance_id> ...";
+    mockChild({ stderr: errorMessage, code: 1 });
+
+    await run();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(errorMessage);
+  });
+
+  it("should report the exit code when the script fails without stderr", async () => {
+    mockChild({ code: 2 });
 
     await run();
 
@@ -200,9 +136,6 @@ describe("run", () => {
   });
 
   it("should set the workflow as failed if an unexpected error occurs", async () => {
-    const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    const mockCore = core as jest.Mocked<typeof core>;
-
     mockSpawn.mockImplementation(() => {
       throw "Not an error object";
     });
@@ -217,12 +150,12 @@ describe("run", () => {
 
 describe("getSessionId", () => {
   it("should extract the session ID from the output", () => {
-    const output = "Session established with ID: test-id";
-    expect(getSessionId(output)).toBe("test-id");
+    expect(getSessionId(SESSION_OUTPUT)).toBe("test-id");
   });
 
   it("should throw an error if the session ID is not found", () => {
-    const output = "Session not established";
-    expect(() => getSessionId(output)).toThrow("Failed to extract session ID");
+    expect(() => getSessionId("Session not established")).toThrow(
+      "Failed to extract session ID",
+    );
   });
 });

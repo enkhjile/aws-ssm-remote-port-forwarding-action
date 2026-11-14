@@ -25968,7 +25968,8 @@ async function run() {
         const host = core.getInput("host", { required: true });
         const port = core.getInput("port", { required: true });
         const localPort = core.getInput("local-port", { required: true });
-        const timeout = core.getInput("timeout") || "60";
+        // action.yml supplies the default; the script has its own for direct runs.
+        const timeout = core.getInput("timeout");
         core.info(`Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`);
         const command = (0, node_child_process_1.spawn)(exports.SCRIPT_PATH, [
             "-t",
@@ -25979,8 +25980,7 @@ async function run() {
             port,
             "-l",
             localPort,
-            "-w",
-            timeout,
+            ...(timeout ? ["-w", timeout] : []),
         ]);
         let stdout = "";
         let stderr = "";
