@@ -64,7 +64,7 @@
   "devDependencies": {
     "@biomejs/biome": "~2.5.15",
     "@types/jest": "^29.5.14",
-    "@types/node": "^20.11.24",
+    "@types/node": "^26.6.6",
     "@vercel/ncc": "^0.45.0",
     "jest": "^29.7.0",
     "lefthook": "^2.1.12",
