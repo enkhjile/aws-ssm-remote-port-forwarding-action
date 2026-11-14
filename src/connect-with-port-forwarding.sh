@@ -4,12 +4,15 @@
 # until the local port is open, then exit and leave the session running in the
 # background. On success prints "Session established with ID: <id>".
 #
+# <target> is an EC2 instance ID or an ECS task container
+# (ecs:<cluster>_<task>_<runtime>); it goes to `aws ssm start-session` as is.
+#
 # On failure (timeout, or the AWS CLI exiting early) it terminates the SSM
 # session if one was started, stops the AWS CLI and its session-manager-plugin,
 # prints the CLI's output to stderr and exits non-zero.
 
 usage() {
-  echo "Usage: $0 -t <target_instance_id> -h <remote_host> -p <remote_port> -l <local_port> [-w <timeout_seconds>]" >&2
+  echo "Usage: $0 -t <instance_id|ecs:<cluster>_<task_id>_<container_runtime_id>> -h <remote_host> -p <remote_port> -l <local_port> [-w <timeout_seconds>]" >&2
   exit 1
 }
 
