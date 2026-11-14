@@ -134,6 +134,22 @@ describe("connect-with-port-forwarding.sh", () => {
     expect(readOrEmpty(logFile)).not.toContain("terminate-session");
   });
 
+  it("passes an ECS task container target to start-session unchanged", () => {
+    const target =
+      "ecs:my-ecs-cluster_1234abcd5678efab9012cdef3456abcd_1234abcd5678efab9012cdef3456abcd-1234567890";
+    const result = runScript([...ARGS.slice(2), "-t", target, "-w", "5"]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      "Session established with ID: test-session",
+    );
+    expect(readOrEmpty(logFile)).toContain(
+      `ssm start-session --target ${target} --document-name AWS-StartPortForwardingSessionToRemoteHost`,
+    );
+    // No other AWS calls (e.g. an EC2 lookup) are made for the target.
+    expect(readOrEmpty(logFile).trim().split("\n")).toHaveLength(1);
+  });
+
   it("extracts session ids that contain dots", () => {
     const result = runScript([...ARGS, "-w", "5"], {
       FAKE_SESSION_ID: "someone@example.co.jp-abc123",
