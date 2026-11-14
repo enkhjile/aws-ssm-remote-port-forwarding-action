@@ -1,0 +1,34 @@
+#!/bin/bash
+# Fake AWS CLI for the connect-with-port-forwarding.sh tests.
+#   FAKE_LOG          file that receives one line per invocation (the arguments)
+#   FAKE_PLUGIN_PID   file that receives the PID of the fake session-manager-plugin
+#   FAKE_SESSION_ID   session id to print (default: test-session)
+#   FAKE_START_DELAY  seconds before "Starting session with SessionId: ..."
+#   FAKE_PORT_DELAY   seconds between that line and "Port ... opened ..."
+#   FAKE_FAIL=1       start-session prints an error and exits 255 right away
+echo "$*" >> "${FAKE_LOG:-/dev/null}"
+
+case "$1 $2" in
+  "ssm start-session")
+    if [ "${FAKE_FAIL}" = 1 ]; then
+      echo "listen tcp 127.0.0.1:5432: bind: address already in use" >&2
+      exit 255
+    fi
+    session_id="${FAKE_SESSION_ID:-test-session}"
+    sleep "${FAKE_START_DELAY:-0}"
+    printf '\nStarting session with SessionId: %s\n' "${session_id}"
+    # Stand-in for session-manager-plugin: a long-lived child process.
+    sleep 300 &
+    echo $! > "${FAKE_PLUGIN_PID:-/dev/null}"
+    sleep "${FAKE_PORT_DELAY:-0}"
+    printf '\nPort 5432 opened for sessionId %s.\nWaiting for connections...\n' "${session_id}"
+    wait
+    ;;
+  "ssm terminate-session")
+    exit 0
+    ;;
+  *)
+    echo "fake aws: unexpected command: $*" >&2
+    exit 2
+    ;;
+esac
