@@ -6,7 +6,7 @@ import { ErrorMessage, StateName } from "./const";
 const SCRIPT_NAME = "connect-with-port-forwarding.sh";
 export const SCRIPT_PATH = path.join(__dirname, SCRIPT_NAME);
 
-export async function getSessionId(output: string): Promise<string> {
+export function getSessionId(output: string): string {
   const regex = /Session established with ID: (\S+)/;
   const match = output.match(regex);
 
@@ -23,9 +23,11 @@ export async function run(): Promise<void> {
     const host = core.getInput("host", { required: true });
     const port = core.getInput("port", { required: true });
     const localPort = core.getInput("local-port", { required: true });
+    // action.yml supplies the default; the script has its own for direct runs.
+    const timeout = core.getInput("timeout");
 
     core.info(
-      `Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`
+      `Establishing a session with target ${target} and forwarding ${host}:${port} to localhost:${localPort}`,
     );
 
     const command = spawn(SCRIPT_PATH, [
@@ -37,6 +39,7 @@ export async function run(): Promise<void> {
       port,
       "-l",
       localPort,
+      ...(timeout ? ["-w", timeout] : []),
     ]);
 
     let stdout = "";
@@ -56,17 +59,19 @@ export async function run(): Promise<void> {
       command.on("error", reject);
     });
 
-    if (exitCode !== 0 || stderr) {
-      throw new Error(stderr);
+    if (exitCode !== 0) {
+      throw new Error(
+        stderr.trim() || `Port forwarding script exited with code ${exitCode}`,
+      );
     }
-    const sessionId = await getSessionId(stdout);
+    const sessionId = getSessionId(stdout);
 
     // Save the session ID to the state
     core.saveState(StateName.SessionId, sessionId);
   } catch (error) {
     // Fail the workflow run if an error occurs
     core.setFailed(
-      error instanceof Error ? error.message : ErrorMessage.UnexpectedError
+      error instanceof Error ? error.message : ErrorMessage.UnexpectedError,
     );
   }
 }

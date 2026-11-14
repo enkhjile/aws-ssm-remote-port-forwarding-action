@@ -12,6 +12,11 @@ This action allows you to forward a port from a remote machine to your local mac
 | host | true | The remote host to forward the port from |
 | port | true | The remote port to forward |
 | local-port | true | The local port to forward to |
+| timeout | false | Seconds to wait for the session to open the local port (default `60`) |
+
+The step finishes once the local port is open, and the session stays up for the rest of the job. A post step terminates it when the job ends.
+
+If the port doesn't open within `timeout`, or the AWS CLI exits early, the step fails, terminates the SSM session it started, and stops the AWS CLI and its `session-manager-plugin`.
 
 ## Example usage
 
@@ -35,7 +40,7 @@ jobs:
         role-to-assume: arn:aws:iam::123456789012:role/role-name
 
     - name: Port forward
-      uses: enkhjile/aws-ssm-remote-port-forwarding-action@v1
+      uses: enkhjile/aws-ssm-remote-port-forwarding-action@v2
       with:
         target: i-1234567890abcdef0
         host: my-rds-instance.123456789012.ap-northeast-1.rds.amazonaws.com
@@ -56,14 +61,6 @@ for example `arn:aws:ssm:<region>::document/AWS-StartPortForwardingSessionToRemo
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Sid": "Ec2DescribeBastionTarget",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:DescribeInstances"
-      ],
-      "Resource": "*"
-    },
     {
       "Sid": "SsmStartPortForwardingSession",
       "Effect": "Allow",
